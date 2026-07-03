@@ -135,7 +135,8 @@ const INITIAL_PROFILE: UserProfile = {
   xpToNextLevel: 2000,
   streak: 5,
   favoriteDestination: "Oia Cliffs, Greece",
-  mostCollectedCategory: "Historic Sites"
+  mostCollectedCategory: "Historic Sites",
+  isPremium: false
 };
 
 export function getDB(): LocalDB {

@@ -152,6 +152,19 @@ app.post("/api/cards/:id/favorite", (req, res) => {
   }
 });
 
+// Update profile premium status
+app.post("/api/profile/premium", (req, res) => {
+  const { isPremium } = req.body;
+  try {
+    const db = getDB();
+    db.profile.isPremium = !!isPremium;
+    saveDB(db);
+    res.json(db);
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to update premium status", message: error.message });
+  }
+});
+
 // Reset database route (mainly for debugging/cleaning up)
 app.post("/api/reset", (req, res) => {
   try {

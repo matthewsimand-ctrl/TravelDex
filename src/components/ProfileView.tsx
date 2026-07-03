@@ -4,15 +4,16 @@
  */
 
 import React from "react";
-import { User, Map, Landmark, Compass, Award, Heart, Globe, Building, CheckCircle } from "lucide-react";
+import { User, Map, Landmark, Compass, Award, Heart, Globe, Building, CheckCircle, Sparkles, ShieldCheck, Zap } from "lucide-react";
 import { TradingCard, UserProfile } from "../types.js";
 
 interface ProfileViewProps {
   profile: UserProfile;
   cards: TradingCard[];
+  onTogglePremium: (isPremium: boolean) => Promise<void>;
 }
 
-export default function ProfileView({ profile, cards }: ProfileViewProps) {
+export default function ProfileView({ profile, cards, onTogglePremium }: ProfileViewProps) {
   // Extract unique locations
   const uniqueCountries = Array.from(new Set(cards.map(c => c.country)));
   const uniqueCities = Array.from(new Set(cards.map(c => c.city)));
@@ -208,6 +209,61 @@ export default function ProfileView({ profile, cards }: ProfileViewProps) {
           <span className="text-slate-500 font-bold">Collection Completeness</span>
           <span className="font-extrabold text-emerald-600 font-mono">
             {Math.floor((cards.length / 50) * 100)}% (Goal: 50)
+          </span>
+        </div>
+      </div>
+
+      {/* Premium Account Subscription Control */}
+      <div className="mt-5 rounded-2xl border border-pink-200 bg-gradient-to-br from-pink-50/40 via-purple-50/40 to-indigo-50/40 p-4 shrink-0 shadow-sm relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-24 h-24 bg-pink-300/10 blur-[20px] rounded-full pointer-events-none" />
+        
+        <div className="flex justify-between items-start mb-3">
+          <div>
+            <h4 className="font-black text-slate-800 text-sm flex items-center gap-1.5">
+              <Sparkles className="w-4.5 h-4.5 text-pink-500" />
+              <span>TravelDex Premium</span>
+            </h4>
+            <p className="text-[11px] text-slate-500 mt-1 max-w-[220px] leading-relaxed">
+              Toggle to simulate subscription payment status. Blocks/unlocks all premium features.
+            </p>
+          </div>
+          
+          <button
+            id="premium-toggle-btn"
+            onClick={() => onTogglePremium(!profile.isPremium)}
+            className={`px-3 py-1.5 rounded-lg text-[11px] font-mono font-black tracking-wider shadow-sm transition-all flex items-center gap-1 cursor-pointer hover:scale-105 active:scale-95 ${
+              profile.isPremium 
+                ? "bg-gradient-to-r from-pink-500 to-indigo-500 text-white border border-pink-400"
+                : "bg-slate-100 text-slate-500 hover:bg-slate-200 border border-slate-200"
+            }`}
+          >
+            {profile.isPremium ? (
+              <>
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>UNLOCKED</span>
+              </>
+            ) : (
+              <>
+                <Zap className="w-3.5 h-3.5" />
+                <span>GO PREMIUM</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Subscription Status details */}
+        <div className="bg-white/80 rounded-xl p-3 border border-pink-100/60 mt-2 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="relative flex h-2 w-2">
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${profile.isPremium ? 'bg-pink-400' : 'bg-slate-300'}`}></span>
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${profile.isPremium ? 'bg-pink-500' : 'bg-slate-400'}`}></span>
+            </div>
+            <span className="text-[11px] font-mono font-bold text-slate-600">
+              Account Status:
+            </span>
+          </div>
+          <span className={`text-[11px] font-bold uppercase tracking-wider font-mono ${profile.isPremium ? 'text-pink-600' : 'text-slate-500'}`}>
+            {profile.isPremium ? "PRO UNLIMITED" : "STANDARD FREE"}
           </span>
         </div>
       </div>

@@ -13,6 +13,7 @@ import HomeView from "./components/HomeView.js";
 import { TradingCard, TravelCollection, Achievement, UserProfile } from "./types.js";
 import { Compass, BookOpen, Trophy, User, Sparkles, X, Heart, Eye, Home, ArrowLeft } from "lucide-react";
 import HolographicCard from "./components/HolographicCard.js";
+const traveldexLogo = "/src/assets/images/traveldex_logo_1783103075384.jpg";
 
 type ActiveView = "home" | "explore" | "collection" | "achievements" | "profile";
 
@@ -113,6 +114,23 @@ export default function App() {
       setCustomCollections(data.customCollections || []);
     } catch (e) {
       console.error("Failed to create custom binder:", e);
+    }
+  };
+
+  // Handle toggling premium status
+  const handleTogglePremium = async (isPremium: boolean) => {
+    try {
+      const res = await fetch("/api/profile/premium", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isPremium })
+      });
+      const data = await res.json();
+      if (data.profile) {
+        setProfile(data.profile);
+      }
+    } catch (e) {
+      console.error("Failed to toggle premium status:", e);
     }
   };
 
@@ -239,8 +257,8 @@ export default function App() {
           {/* Top TravelDex Header Bar */}
           <div className="h-14 bg-white/80 backdrop-blur-md border-b border-pink-100 flex items-center justify-between px-5 select-none shrink-0 z-40 shadow-sm shadow-pink-100/10">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-indigo-100 border border-indigo-200 flex items-center justify-center text-indigo-600 shadow-sm">
-                <Compass className="w-4.5 h-4.5" />
+              <div className="w-8 h-8 rounded-full overflow-hidden border border-indigo-200 shadow-sm flex items-center justify-center shrink-0 bg-slate-50">
+                <img src={traveldexLogo} alt="TravelDex Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
               </div>
               <span className="font-black text-indigo-700 text-base tracking-wider">
                 TravelDex
@@ -266,9 +284,11 @@ export default function App() {
 
           {activeView === "explore" && (
             <ExploreView 
+              profile={profile}
               onCardGenerated={handleCardGenerated}
               collections={presetCollections.concat(customCollections)}
               initialTab={exploreInitialTab}
+              onTogglePremium={handleTogglePremium}
             />
           )}
 
@@ -296,6 +316,7 @@ export default function App() {
             <ProfileView 
               profile={profile}
               cards={cards}
+              onTogglePremium={handleTogglePremium}
             />
           )}
 

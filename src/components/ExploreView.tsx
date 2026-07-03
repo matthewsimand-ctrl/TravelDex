@@ -7,19 +7,21 @@ import React, { useState, useRef, useEffect } from "react";
 import { 
   Camera, Upload, Sparkles, Image as ImageIcon, MapPin, Check, 
   RefreshCw, FolderOpen, ArrowLeft, RotateCw, Compass, FileText, 
-  BookOpen, Eye, Info, Sliders, Edit3
+  BookOpen, Eye, Info, Sliders, Edit3, Zap
 } from "lucide-react";
 import { TRAVEL_PRESETS, TravelPreset } from "../presets.js";
-import { TradingCard, CardRarity } from "../types.js";
+import { TradingCard, CardRarity, UserProfile } from "../types.js";
 import HolographicCard from "./HolographicCard.tsx";
 
 interface ExploreViewProps {
+  profile: UserProfile | null;
   onCardGenerated: (card: Partial<TradingCard>) => Promise<void>;
   collections: { id: string; name: string; iconName: string }[];
   initialTab?: "presets" | "upload" | "camera" | "manual";
+  onTogglePremium: (isPremium: boolean) => Promise<void>;
 }
 
-export default function ExploreView({ onCardGenerated, collections, initialTab }: ExploreViewProps) {
+export default function ExploreView({ profile, onCardGenerated, collections, initialTab, onTogglePremium }: ExploreViewProps) {
   const [activeTab, setActiveTab] = useState<"presets" | "upload" | "camera" | "manual">("presets");
   const [dragActive, setDragActive] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -757,8 +759,62 @@ export default function ExploreView({ onCardGenerated, collections, initialTab }
             })}
           </div>
 
-          {/* Preset Tab Content */}
-          {activeTab === "presets" && (
+          {/* Conditional Premium Lock Screen */}
+          {!profile?.isPremium && activeTab !== "manual" ? (
+            <div className="flex-grow flex flex-col items-center justify-center p-6 text-center bg-white/70 backdrop-blur-md rounded-2xl border border-pink-200 shadow-sm relative overflow-hidden animate-fade-in my-4">
+              <div className="absolute -top-10 -right-10 w-32 h-32 bg-pink-300/20 blur-[30px] rounded-full pointer-events-none" />
+              <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-indigo-300/20 blur-[30px] rounded-full pointer-events-none" />
+              
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-pink-500 to-indigo-600 p-[1.5px] shadow-[0_0_25px_rgba(236,72,153,0.25)] mb-4 animate-bounce">
+                <div className="w-full h-full rounded-2xl bg-white flex items-center justify-center">
+                  <Sparkles className="w-8 h-8 text-pink-500" />
+                </div>
+              </div>
+
+              <span className="text-[10px] font-mono font-bold bg-pink-500 text-white px-2 py-0.5 rounded-full uppercase tracking-widest shadow-sm">
+                Premium Feature
+              </span>
+              
+              <h3 className="font-black text-slate-800 text-lg mt-3 tracking-tight">
+                Unlock AI Expedition Scan
+              </h3>
+              
+              <p className="text-xs text-slate-500 mt-2 max-w-[280px] leading-relaxed">
+                Let Gemini AI scan your travel snapshots to auto-detect coordinates, country, town, historical fun facts, and forge exotic holographic cards!
+              </p>
+
+              <div className="my-5 w-full max-w-[260px] bg-indigo-50/50 border border-indigo-100/60 rounded-xl p-3 text-left space-y-2 select-none">
+                <div className="flex items-center gap-2 text-[11px] text-slate-600 font-medium">
+                  <div className="w-4 h-4 rounded bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold shrink-0 text-[10px]">✓</div>
+                  <span>Gemini AI Photo Landscape Scan</span>
+                </div>
+                <div className="flex items-center gap-2 text-[11px] text-slate-600 font-medium">
+                  <div className="w-4 h-4 rounded bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold shrink-0 text-[10px]">✓</div>
+                  <span>Smart Coordinates & History Detection</span>
+                </div>
+                <div className="flex items-center gap-2 text-[11px] text-slate-600 font-medium">
+                  <div className="w-4 h-4 rounded bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold shrink-0 text-[10px]">✓</div>
+                  <span>Mythic & Legendary Holographic Themes</span>
+                </div>
+              </div>
+
+              <button
+                id="paywall-unlock-btn"
+                onClick={() => onTogglePremium(true)}
+                className="w-full max-w-[260px] bg-gradient-to-r from-pink-500 to-indigo-600 hover:opacity-95 text-white py-3 rounded-xl font-bold text-xs uppercase tracking-wider shadow-md shadow-pink-100 transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <Zap className="w-4 h-4 fill-white" />
+                <span>Upgrade Now (Simulate Pay)</span>
+              </button>
+
+              <span className="text-[9px] font-mono text-slate-400 mt-2 block">
+                Free trial testing mode • Instant activation
+              </span>
+            </div>
+          ) : (
+            <>
+              {/* Preset Tab Content */}
+              {activeTab === "presets" && (
             <div className="flex-1 flex flex-col overflow-hidden">
               <h3 className="text-xs font-mono uppercase text-slate-400 mb-3 block font-bold">Choose a Travel Destination</h3>
               <div className="flex-1 overflow-y-auto no-scrollbar grid grid-cols-2 gap-3.5 pr-0.5">
@@ -1101,6 +1157,8 @@ export default function ExploreView({ onCardGenerated, collections, initialTab }
 
               </div>
             </div>
+          )}
+          </>
           )}
         </div>
       )}

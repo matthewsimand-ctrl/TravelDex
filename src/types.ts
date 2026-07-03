@@ -72,4 +72,5 @@ export interface UserProfile {
   streak: number;
   favoriteDestination: string;
   mostCollectedCategory: string;
+  isPremium?: boolean;
 }
