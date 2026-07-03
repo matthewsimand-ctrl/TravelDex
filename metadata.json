@@ -1,0 +1,8 @@
+{
+  "name": "TravelDex",
+  "description": "Transform your travel memories into beautiful, collectible virtual trading cards powered by AI.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
