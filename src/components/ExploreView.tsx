@@ -9,6 +9,7 @@ import {
   RefreshCw, FolderOpen, ArrowLeft, RotateCw, Compass, FileText, 
   BookOpen, Eye, Info, Sliders, Edit3, Zap
 } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 import { TRAVEL_PRESETS, TravelPreset } from "../presets.js";
 import { TradingCard, CardRarity, UserProfile } from "../types.js";
 import HolographicCard from "./HolographicCard.tsx";
@@ -357,33 +358,123 @@ export default function ExploreView({ profile, onCardGenerated, collections, ini
       
       {/* 1. Loading AI Scanning Screen */}
       {isGenerating && (
-        <div className="absolute inset-0 bg-white/95 backdrop-blur-lg z-50 flex flex-col items-center justify-center p-6 text-center animate-fade-in">
-          <div className="relative mb-8">
-            <div className="w-24 h-24 rounded-full border-4 border-pink-200 border-t-pink-500 border-r-pink-500 animate-spin" />
-            <div className="absolute inset-2 rounded-full border border-dashed border-pink-300 animate-pulse flex items-center justify-center">
-              <Compass className="w-10 h-10 text-pink-500 animate-spin-slow" />
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="absolute inset-0 bg-slate-900/95 backdrop-blur-xl z-50 flex flex-col items-center justify-center p-6 text-center text-white animate-fade-in"
+        >
+          {/* Futuristic Scanning UI Header */}
+          <div className="mb-6 select-none">
+            <span className="text-[10px] font-mono tracking-widest text-pink-400 uppercase bg-pink-500/10 border border-pink-500/20 px-3 py-1 rounded-full animate-pulse inline-flex items-center gap-1.5 font-bold">
+              <Sparkles className="w-3 h-3 text-pink-400" />
+              Quantum Card Forger Active
+            </span>
+            <h3 className="text-xl font-black tracking-tight text-white mt-2.5 flex items-center justify-center gap-2">
+              <Compass className="w-5 h-5 text-indigo-400 animate-spin-slow" />
+              <span>Analyzing Travel Snapshot</span>
+            </h3>
+          </div>
+
+          {/* Central Holographic Image Canvas Container */}
+          <div className="relative w-64 h-80 rounded-2xl border border-indigo-500/40 overflow-hidden shadow-[0_0_50px_rgba(236,72,153,0.3)] bg-slate-950 flex items-center justify-center mb-8">
+            {/* The Raw Uploaded/Captured Image being analyzed */}
+            {capturedImage ? (
+              <img 
+                src={capturedImage} 
+                alt="Analyzing Snap" 
+                className="w-full h-full object-cover opacity-75 select-none pointer-events-none"
+              />
+            ) : (
+              <div className="text-slate-500 flex flex-col items-center">
+                <ImageIcon className="w-12 h-12 text-indigo-400 animate-pulse mb-2" />
+                <span className="text-xs font-mono">Initializing Matrix...</span>
+              </div>
+            )}
+
+            {/* Scanning Laser Line (Sweeping vertically) */}
+            <motion.div 
+              animate={{ 
+                top: ["0%", "100%", "0%"]
+              }}
+              transition={{
+                duration: 2.2,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+              className="absolute left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-pink-400 to-transparent shadow-[0_0_15px_rgba(236,72,153,0.95)] z-20 pointer-events-none"
+            />
+
+            {/* Glowing Laser Backlight Overlay */}
+            <motion.div 
+              animate={{
+                opacity: [0.1, 0.35, 0.1]
+              }}
+              transition={{
+                duration: 2.2,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+              className="absolute inset-0 bg-indigo-500/10 pointer-events-none z-10"
+            />
+
+            {/* Computer Vision Matrix Grids & Rings */}
+            <div className="absolute inset-0 border border-dashed border-indigo-500/10 rounded-2xl pointer-events-none z-10 flex items-center justify-center">
+              <div className="w-48 h-48 rounded-full border border-pink-500/15 animate-ping absolute" style={{ animationDuration: "3s" }} />
+              <div className="w-36 h-36 rounded-full border border-indigo-500/15 border-dashed animate-spin absolute" style={{ animationDuration: "14s" }} />
+              <div className="w-20 h-20 rounded-full border-2 border-pink-500/10 absolute flex items-center justify-center">
+                <div className="w-2 h-2 rounded-full bg-pink-400 animate-pulse" />
+              </div>
             </div>
-            <div className="absolute top-0 inset-x-0 h-0.5 bg-pink-500 shadow-[0_0_15px_rgba(236,72,153,0.8)] animate-bounce" />
+
+            {/* Floating Telemetry Coordinates overlays */}
+            <div className="absolute top-3 left-3 font-mono text-[8px] text-indigo-300 text-left leading-tight pointer-events-none z-10 select-none opacity-80">
+              <div>SYS.LOC: MULTI_SCAN</div>
+              <div>GPS_EST: CALCULATING...</div>
+              <div className="text-[7px] text-slate-500 mt-1">LAT: --.---- | LNG: --.----</div>
+            </div>
+            
+            <div className="absolute bottom-3 right-3 font-mono text-[8px] text-pink-300 text-right leading-tight pointer-events-none z-10 select-none opacity-80">
+              <div>LENS_COMP: 98.4%</div>
+              <div>OVERLAY: HOLO_FOIL_A</div>
+              <div className="text-[7px] text-slate-500 mt-1">RENDER_STAGE: ENGRAVING</div>
+            </div>
           </div>
 
-          <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2 mb-2 justify-center">
-            <Sparkles className="w-5 h-5 text-pink-500 animate-pulse" />
-            <span>AI Landmark Analyst</span>
-          </h3>
-          
-          <div className="h-10 text-sm text-indigo-600 font-mono max-w-sm px-4">
-            {loadingQuotes[loadingStep]}
-          </div>
+          {/* Progress Bar & Telemetry Logs */}
+          <div className="w-full max-w-xs flex flex-col gap-3.5 select-none">
+            <div className="flex justify-between items-center text-[10px] font-mono text-slate-400 px-1 font-bold">
+              <span className="text-pink-400">ANALYZING LANDSCAPE ARCHITECTURE</span>
+              <span>{Math.round(((loadingStep + 1) / loadingQuotes.length) * 100)}%</span>
+            </div>
+            
+            {/* Real Progress Bar */}
+            <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden border border-slate-700/45 p-[1px]">
+              <motion.div 
+                animate={{ width: `${((loadingStep + 1) / loadingQuotes.length) * 100}%` }}
+                transition={{ duration: 0.5 }}
+                className="h-full bg-gradient-to-r from-pink-500 to-indigo-500 rounded-full shadow-[0_0_10px_rgba(236,72,153,0.6)] animate-pulse"
+              />
+            </div>
 
-          <p className="text-xs text-slate-400 mt-12 max-w-[280px]">
-            Please hold on while Gemini processes your travel photo, estimates GPS coordinates, and prints your holographic trading card...
-          </p>
-        </div>
+            {/* Updating Status Text with typing-fade keyframe */}
+            <div className="h-8 text-xs text-indigo-200 font-mono max-w-sm px-4 flex items-center justify-center gap-2">
+              <RefreshCw className="w-3.5 h-3.5 text-pink-400 animate-spin shrink-0" />
+              <span key={loadingStep} className="animate-pulse tracking-tight">{loadingQuotes[loadingStep]}</span>
+            </div>
+          </div>
+        </motion.div>
       )}
 
       {/* 2. Unified Live Card Editor & Review Screen */}
       {draftCard ? (
-        <div className="flex-grow flex flex-col gap-4 animate-fade-in">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95, rotateY: -15, y: 15 }}
+          animate={{ opacity: 1, scale: 1, rotateY: 0, y: 0 }}
+          transition={{ duration: 0.65, ease: "easeOut" }}
+          style={{ perspective: 1200 }}
+          className="flex-grow flex flex-col gap-4"
+        >
           
           {/* Header */}
           <div className="flex items-center gap-3 border-b border-rose-100 pb-3">
@@ -692,7 +783,7 @@ export default function ExploreView({ profile, onCardGenerated, collections, ini
 
           </div>
 
-        </div>
+        </motion.div>
       ) : (
         /* 3. Standard Uploader Screen */
         <div className="flex-grow flex flex-col">

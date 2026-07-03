@@ -16,7 +16,8 @@ import {
   deleteCard,
   toggleFavorite,
   createCollection,
-  getPresetCollections
+  getPresetCollections,
+  resetDB
 } from "./server_db.js";
 import { CardRarity, TradingCard } from "./src/types.js";
 
@@ -53,9 +54,9 @@ if (apiKey && apiKey !== "MY_GEMINI_API_KEY") {
 // ----------------------------------------------------
 
 // Get complete database (cards, collections, profile, achievements)
-app.get("/api/db", (req, res) => {
+app.get("/api/db", async (req, res) => {
   try {
-    const db = getDB();
+    const db = await getDB();
     const defaultCollections = getPresetCollections();
     res.json({
       ...db,
@@ -67,13 +68,13 @@ app.get("/api/db", (req, res) => {
 });
 
 // Create custom collection
-app.post("/api/collections", (req, res) => {
+app.post("/api/collections", async (req, res) => {
   const { name } = req.body;
   if (!name) {
     return res.status(400).json({ error: "Collection name is required" });
   }
   try {
-    const db = createCollection(name);
+    const db = await createCollection(name);
     res.json(db);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to create collection", message: error.message });
@@ -81,7 +82,7 @@ app.post("/api/collections", (req, res) => {
 });
 
 // Save trading card to collection
-app.post("/api/cards", (req, res) => {
+app.post("/api/cards", async (req, res) => {
   const cardData: Partial<TradingCard> = req.body;
   
   if (!cardData.landmark || !cardData.imageUrl) {
@@ -89,7 +90,7 @@ app.post("/api/cards", (req, res) => {
   }
 
   try {
-    const db = getDB();
+    const db = await getDB();
     // Assign unique card number and ID
     const paddedNum = String(db.cards.length + 1).padStart(3, "0");
     const newCard: TradingCard = {
@@ -123,7 +124,7 @@ app.post("/api/cards", (req, res) => {
       photoQualityScore: cardData.photoQualityScore || Math.floor(Math.random() * 20) + 80
     };
 
-    const updatedDB = addCard(newCard);
+    const updatedDB = await addCard(newCard);
     res.json(updatedDB);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to save card", message: error.message });
@@ -131,10 +132,10 @@ app.post("/api/cards", (req, res) => {
 });
 
 // Delete card from collection
-app.delete("/api/cards/:id", (req, res) => {
+app.delete("/api/cards/:id", async (req, res) => {
   const { id } = req.params;
   try {
-    const updatedDB = deleteCard(id);
+    const updatedDB = await deleteCard(id);
     res.json(updatedDB);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to delete card", message: error.message });
@@ -142,10 +143,10 @@ app.delete("/api/cards/:id", (req, res) => {
 });
 
 // Toggle favorite state of card
-app.post("/api/cards/:id/favorite", (req, res) => {
+app.post("/api/cards/:id/favorite", async (req, res) => {
   const { id } = req.params;
   try {
-    const updatedDB = toggleFavorite(id);
+    const updatedDB = await toggleFavorite(id);
     res.json(updatedDB);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to toggle favorite", message: error.message });
@@ -153,12 +154,12 @@ app.post("/api/cards/:id/favorite", (req, res) => {
 });
 
 // Update profile premium status
-app.post("/api/profile/premium", (req, res) => {
+app.post("/api/profile/premium", async (req, res) => {
   const { isPremium } = req.body;
   try {
-    const db = getDB();
+    const db = await getDB();
     db.profile.isPremium = !!isPremium;
-    saveDB(db);
+    await saveDB(db);
     res.json(db);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to update premium status", message: error.message });
@@ -166,13 +167,13 @@ app.post("/api/profile/premium", (req, res) => {
 });
 
 // Reset database route (mainly for debugging/cleaning up)
-app.post("/api/reset", (req, res) => {
+app.post("/api/reset", async (req, res) => {
   try {
     const DB_FILE = path.join(process.cwd(), "travel_dex_db.json");
     if (fs.existsSync(DB_FILE)) {
       fs.unlinkSync(DB_FILE);
     }
-    const db = getDB();
+    const db = await resetDB();
     res.json(db);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to reset database", message: error.message });

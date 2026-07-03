@@ -1,0 +1,91 @@
+{
+  "entities": {
+    "TradingCard": {
+      "title": "TradingCard",
+      "description": "A generated travel trading card representing a location visited.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "landmark": { "type": "string" },
+        "city": { "type": "string" },
+        "country": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "sceneType": { "type": "string" },
+        "coordinates": { "type": "string" },
+        "rarity": { "type": "string" },
+        "dateVisited": { "type": "string" },
+        "cardNumber": { "type": "string" },
+        "description": { "type": "string" },
+        "funFact": { "type": "string" },
+        "travelTip": { "type": "string" },
+        "flavorText": { "type": "string" },
+        "tags": { "type": "array" },
+        "collectionId": { "type": "string" },
+        "favorite": { "type": "boolean" },
+        "photoQualityScore": { "type": "integer" }
+      },
+      "required": ["id", "landmark", "imageUrl"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User account levels, stats, and achievements.",
+      "type": "object",
+      "properties": {
+        "username": { "type": "string" },
+        "email": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "level": { "type": "integer" },
+        "xp": { "type": "integer" },
+        "xpToNextLevel": { "type": "integer" },
+        "streak": { "type": "integer" },
+        "favoriteDestination": { "type": "string" },
+        "mostCollectedCategory": { "type": "string" },
+        "isPremium": { "type": "boolean" }
+      }
+    },
+    "TravelCollection": {
+      "title": "TravelCollection",
+      "description": "A custom card binder/collection.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "iconName": { "type": "string" },
+        "description": { "type": "string" },
+        "isCustom": { "type": "boolean" }
+      }
+    },
+    "Achievement": {
+      "title": "Achievement",
+      "description": "Travel milestones and badges unlocked.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "unlockedAt": { "type": "string" },
+        "iconName": { "type": "string" },
+        "badgeColor": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/cards": {
+      "schema": "TradingCard",
+      "description": "Collection of all trading cards"
+    },
+    "/collections": {
+      "schema": "TravelCollection",
+      "description": "Collection of all custom card binders"
+    },
+    "/profile": {
+      "schema": "UserProfile",
+      "description": "User passport level and profile stats"
+    },
+    "/achievements": {
+      "schema": "Achievement",
+      "description": "Achievement records"
+    }
+  }
+}

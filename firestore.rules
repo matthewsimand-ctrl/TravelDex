@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net (default deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Rules for Trading Cards
+    match /cards/{cardId} {
+      allow read, write: if isSignedIn() && isValidId(cardId);
+    }
+
+    // Rules for Custom Binders
+    match /collections/{colId} {
+      allow read, write: if isSignedIn() && isValidId(colId);
+    }
+
+    // Rules for User Profile
+    match /profile/{profileId} {
+      allow read, write: if isSignedIn() && isValidId(profileId);
+    }
+
+    // Rules for Achievements
+    match /achievements/{achId} {
+      allow read, write: if isSignedIn() && isValidId(achId);
+    }
+  }
+}

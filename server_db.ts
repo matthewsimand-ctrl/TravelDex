@@ -5,9 +5,22 @@
 
 import fs from "fs";
 import path from "path";
+import { initializeApp, getApps } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
 import { TradingCard, TravelCollection, Achievement, UserProfile, CardRarity } from "./src/types.js";
 
-const DB_FILE = path.join(process.cwd(), "travel_dex_db.json");
+// Load configuration for the Firebase database ID and Project ID
+const configPath = path.join(process.cwd(), "firebase-applet-config.json");
+const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+
+if (!getApps().length) {
+  initializeApp({
+    projectId: firebaseConfig.projectId,
+  });
+}
+
+// Initialize Firestore targeting the specific named database instance
+const firestoreDb = getFirestore(firebaseConfig.firestoreDatabaseId);
 
 export interface LocalDB {
   cards: TradingCard[];
@@ -139,152 +152,240 @@ const INITIAL_PROFILE: UserProfile = {
   isPremium: false
 };
 
-export function getDB(): LocalDB {
-  if (!fs.existsSync(DB_FILE)) {
-    const initialDB: LocalDB = {
-      cards: DEFAULT_CARDS,
-      customCollections: [],
-      profile: INITIAL_PROFILE,
-      achievements: DEFAULT_ACHIEVEMENTS
-    };
-    saveDB(initialDB);
-    return initialDB;
-  }
-
-  try {
-    const raw = fs.readFileSync(DB_FILE, "utf-8");
-    const data = JSON.parse(raw);
-    // Ensure all keys exist
-    return {
-      cards: data.cards || [],
-      customCollections: data.customCollections || [],
-      profile: data.profile || INITIAL_PROFILE,
-      achievements: data.achievements || DEFAULT_ACHIEVEMENTS
-    };
-  } catch (error) {
-    console.error("Error reading database, resetting...", error);
-    const initialDB: LocalDB = {
-      cards: DEFAULT_CARDS,
-      customCollections: [],
-      profile: INITIAL_PROFILE,
-      achievements: DEFAULT_ACHIEVEMENTS
-    };
-    saveDB(initialDB);
-    return initialDB;
-  }
+/**
+ * Helper to delete all documents in a collection (useful during DB reset)
+ */
+async function deleteCollection(collectionPath: string) {
+  const collectionRef = firestoreDb.collection(collectionPath);
+  const snapshot = await collectionRef.get();
+  const batch = firestoreDb.batch();
+  snapshot.docs.forEach((doc) => {
+    batch.delete(doc.ref);
+  });
+  await batch.commit();
 }
 
-export function saveDB(db: LocalDB): void {
+export async function getDB(): Promise<LocalDB> {
   try {
-    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
-  } catch (error) {
-    console.error("Error saving database:", error);
-  }
-}
-
-export function addCard(card: TradingCard): LocalDB {
-  const db = getDB();
-  db.cards.unshift(card);
-
-  // Recalculate traveler level & progress!
-  // Every card generates 300 XP
-  // Epic card + 100 XP, Legendary +250 XP, Mythic +500 XP
-  let xpEarned = 300;
-  if (card.rarity === CardRarity.EPIC) xpEarned += 100;
-  if (card.rarity === CardRarity.LEGENDARY) xpEarned += 250;
-  if (card.rarity === CardRarity.MYTHIC) xpEarned += 500;
-
-  db.profile.xp += xpEarned;
-  
-  // XP level up logic
-  while (db.profile.xp >= db.profile.xpToNextLevel) {
-    db.profile.xp -= db.profile.xpToNextLevel;
-    db.profile.level += 1;
-    db.profile.xpToNextLevel = Math.floor(db.profile.xpToNextLevel * 1.25);
-  }
-
-  // Update favorites and metrics
-  const uniqueCountries = Array.from(new Set(db.cards.map(c => c.country)));
-  const uniqueCities = Array.from(new Set(db.cards.map(c => c.city)));
-  
-  // Achievement updates
-  db.achievements = db.achievements.map(ach => {
-    if (ach.unlockedAt) return ach; // Already unlocked
-
-    let unlock = false;
-    if (ach.id === "ach-first-step" && db.cards.length >= 1) unlock = true;
-    if (ach.id === "ach-trio" && db.cards.length >= 3) unlock = true;
-    if (ach.id === "ach-legend" && (card.rarity === CardRarity.LEGENDARY || card.rarity === CardRarity.MYTHIC)) unlock = true;
-    if (ach.id === "ach-multi-country" && uniqueCountries.length >= 3) unlock = true;
+    const profileDocRef = firestoreDb.collection("profile").doc("main_profile");
+    const profileDoc = await profileDocRef.get();
     
-    // Check beach master: 3 water-themed scene types (Beach or Sunset or Lakes)
-    if (ach.id === "ach-beach-master") {
-      const waterCards = db.cards.filter(c => 
-        c.sceneType.toLowerCase().includes("beach") || 
-        c.sceneType.toLowerCase().includes("sunset") || 
-        c.sceneType.toLowerCase().includes("lake")
-      );
-      if (waterCards.length >= 3) unlock = true;
+    let profile = profileDoc.exists ? (profileDoc.data() as UserProfile) : null;
+
+    // Seeding Firestore on cold start if no profile doc is present
+    if (!profile) {
+      profile = INITIAL_PROFILE;
+      await profileDocRef.set(INITIAL_PROFILE);
+      
+      // Seed default achievements
+      for (const ach of DEFAULT_ACHIEVEMENTS) {
+        await firestoreDb.collection("achievements").doc(ach.id).set(ach);
+      }
+      
+      // Seed default cards
+      for (const card of DEFAULT_CARDS) {
+        await firestoreDb.collection("cards").doc(card.id).set(card);
+      }
     }
 
-    if (unlock) {
-      return { ...ach, unlockedAt: new Date().toISOString() };
-    }
-    return ach;
-  });
+    // Load cards
+    const cardsSnapshot = await firestoreDb.collection("cards").get();
+    const cards: TradingCard[] = [];
+    cardsSnapshot.forEach((doc) => {
+      cards.push(doc.data() as TradingCard);
+    });
 
-  // Calculate most collected category
-  const categories = db.cards.map(c => c.sceneType);
-  const counts: { [key: string]: number } = {};
-  let maxCat = "";
-  let maxCount = 0;
-  categories.forEach(cat => {
-    counts[cat] = (counts[cat] || 0) + 1;
-    if (counts[cat] > maxCount) {
-      maxCount = counts[cat];
-      maxCat = cat;
-    }
-  });
-  if (maxCat) {
-    db.profile.mostCollectedCategory = maxCat;
+    // Sort cards so that user-generated / newly created cards appear at the top
+    cards.sort((a, b) => {
+      const aIsInit = a.id.includes("init");
+      const bIsInit = b.id.includes("init");
+      if (aIsInit && !bIsInit) return 1;
+      if (!aIsInit && bIsInit) return -1;
+      return b.id.localeCompare(a.id);
+    });
+
+    // Load custom collections
+    const collectionsSnapshot = await firestoreDb.collection("collections").get();
+    const customCollections: TravelCollection[] = [];
+    collectionsSnapshot.forEach((doc) => {
+      customCollections.push(doc.data() as TravelCollection);
+    });
+
+    // Load achievements
+    const achievementsSnapshot = await firestoreDb.collection("achievements").get();
+    const achievements: Achievement[] = [];
+    achievementsSnapshot.forEach((doc) => {
+      achievements.push(doc.data() as Achievement);
+    });
+    
+    // Sort achievements according to the predefined order
+    const achOrder = ["ach-first-step", "ach-trio", "ach-legend", "ach-multi-country", "ach-beach-master"];
+    achievements.sort((a, b) => achOrder.indexOf(a.id) - achOrder.indexOf(b.id));
+
+    return {
+      cards,
+      customCollections,
+      profile,
+      achievements
+    };
+  } catch (error) {
+    console.error("Error reading Firestore:", error);
+    // Fallback in case of temporary Firestore connection failures
+    return {
+      cards: DEFAULT_CARDS,
+      customCollections: [],
+      profile: INITIAL_PROFILE,
+      achievements: DEFAULT_ACHIEVEMENTS
+    };
   }
-
-  saveDB(db);
-  return db;
 }
 
-export function deleteCard(id: string): LocalDB {
-  const db = getDB();
-  db.cards = db.cards.filter(c => c.id !== id);
-  saveDB(db);
-  return db;
-}
-
-export function toggleFavorite(id: string): LocalDB {
-  const db = getDB();
-  db.cards = db.cards.map(c => {
-    if (c.id === id) {
-      return { ...c, favorite: !c.favorite };
+export async function saveDB(dbState: LocalDB): Promise<void> {
+  try {
+    await firestoreDb.collection("profile").doc("main_profile").set(dbState.profile);
+    
+    // Sync custom collections
+    for (const col of dbState.customCollections) {
+      await firestoreDb.collection("collections").doc(col.id).set(col);
     }
-    return c;
-  });
-  saveDB(db);
-  return db;
+    
+    // Sync achievements
+    for (const ach of dbState.achievements) {
+      await firestoreDb.collection("achievements").doc(ach.id).set(ach);
+    }
+  } catch (error) {
+    console.error("Error saving DB to Firestore:", error);
+  }
 }
 
-export function createCollection(collectionName: string): LocalDB {
-  const db = getDB();
-  const id = `col-custom-${Date.now()}`;
-  const newCol: TravelCollection = {
-    id,
-    name: collectionName,
-    iconName: "FolderHeart",
-    description: "A custom curated explorer collection.",
-    isCustom: true
-  };
-  db.customCollections.push(newCol);
-  saveDB(db);
-  return db;
+export async function addCard(card: TradingCard): Promise<LocalDB> {
+  try {
+    // Add new card doc
+    await firestoreDb.collection("cards").doc(card.id).set(card);
+
+    const db = await getDB();
+    
+    // Recalculate XP rewards
+    let xpEarned = 300;
+    if (card.rarity === CardRarity.EPIC) xpEarned += 100;
+    if (card.rarity === CardRarity.LEGENDARY) xpEarned += 250;
+    if (card.rarity === CardRarity.MYTHIC) xpEarned += 500;
+
+    db.profile.xp += xpEarned;
+    
+    // Level progress check
+    while (db.profile.xp >= db.profile.xpToNextLevel) {
+      db.profile.xp -= db.profile.xpToNextLevel;
+      db.profile.level += 1;
+      db.profile.xpToNextLevel = Math.floor(db.profile.xpToNextLevel * 1.25);
+    }
+
+    const uniqueCountries = Array.from(new Set(db.cards.map(c => c.country)));
+    
+    // Achievement checks
+    db.achievements = db.achievements.map(ach => {
+      if (ach.unlockedAt) return ach;
+
+      let unlock = false;
+      if (ach.id === "ach-first-step" && db.cards.length >= 1) unlock = true;
+      if (ach.id === "ach-trio" && db.cards.length >= 3) unlock = true;
+      if (ach.id === "ach-legend" && (card.rarity === CardRarity.LEGENDARY || card.rarity === CardRarity.MYTHIC)) unlock = true;
+      if (ach.id === "ach-multi-country" && uniqueCountries.length >= 3) unlock = true;
+      
+      if (ach.id === "ach-beach-master") {
+        const waterCards = db.cards.filter(c => 
+          c.sceneType.toLowerCase().includes("beach") || 
+          c.sceneType.toLowerCase().includes("sunset") || 
+          c.sceneType.toLowerCase().includes("lake")
+        );
+        if (waterCards.length >= 3) unlock = true;
+      }
+
+      if (unlock) {
+        return { ...ach, unlockedAt: new Date().toISOString() };
+      }
+      return ach;
+    });
+
+    // Calculate scene category counts
+    const categories = db.cards.map(c => c.sceneType);
+    const counts: { [key: string]: number } = {};
+    let maxCat = "";
+    let maxCount = 0;
+    categories.forEach(cat => {
+      counts[cat] = (counts[cat] || 0) + 1;
+      if (counts[cat] > maxCount) {
+        maxCount = counts[cat];
+        maxCat = cat;
+      }
+    });
+    if (maxCat) {
+      db.profile.mostCollectedCategory = maxCat;
+    }
+
+    // Persist profile & achievements updates back to Firestore
+    await firestoreDb.collection("profile").doc("main_profile").set(db.profile);
+    for (const ach of db.achievements) {
+      await firestoreDb.collection("achievements").doc(ach.id).set(ach);
+    }
+
+    return getDB();
+  } catch (error) {
+    console.error("Failed to add card in Firestore:", error);
+    return getDB();
+  }
+}
+
+export async function deleteCard(id: string): Promise<LocalDB> {
+  try {
+    await firestoreDb.collection("cards").doc(id).delete();
+  } catch (error) {
+    console.error("Failed to delete card in Firestore:", error);
+  }
+  return getDB();
+}
+
+export async function toggleFavorite(id: string): Promise<LocalDB> {
+  try {
+    const cardRef = firestoreDb.collection("cards").doc(id);
+    const cardDoc = await cardRef.get();
+    if (cardDoc.exists) {
+      const cardData = cardDoc.data() as TradingCard;
+      await cardRef.update({ favorite: !cardData.favorite });
+    }
+  } catch (error) {
+    console.error("Failed to toggle favorite in Firestore:", error);
+  }
+  return getDB();
+}
+
+export async function createCollection(collectionName: string): Promise<LocalDB> {
+  try {
+    const id = `col-custom-${Date.now()}`;
+    const newCol: TravelCollection = {
+      id,
+      name: collectionName,
+      iconName: "FolderHeart",
+      description: "A custom curated explorer collection.",
+      isCustom: true
+    };
+    await firestoreDb.collection("collections").doc(id).set(newCol);
+  } catch (error) {
+    console.error("Failed to create custom collection in Firestore:", error);
+  }
+  return getDB();
+}
+
+export async function resetDB(): Promise<LocalDB> {
+  try {
+    await deleteCollection("cards");
+    await deleteCollection("collections");
+    await deleteCollection("profile");
+    await deleteCollection("achievements");
+  } catch (error) {
+    console.error("Failed to clear Firestore collections during reset:", error);
+  }
+  return getDB();
 }
 
 export function getPresetCollections(): TravelCollection[] {
